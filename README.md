@@ -296,7 +296,39 @@ docker compose down -v   # deletes it, the next up trains from scratch
 
 ## Before using this in production
 
-This is a single-machine proof of concept. What I would change first:
+This is a single-machine proof of concept. These are the things I would settle before relying on it, starting with the ones that matter most.
+
+### What I would ask the business first
+
+The columns are called `feature_0` to `feature_19`, so I don't know what the model is predicting or what its inputs mean. Before this goes to production I would want three answers from the people who own the problem: what the prediction is used for, what it costs to be wrong in each direction, and how much error is acceptable.
+
+Whether a typical error of 1.7 is good enough depends on those answers and not on the metric. They would also tell me whether the five features I kept make sense, or whether one of them only looks useful in these 800 rows.
+
+### Where the model gets it wrong
+
+I looked at the errors on the 160 held-out rows. On average there is no bias, 75% of the predictions are within 2 units of the real value, 13 rows are off by more than 3 and the worst one is off by 5.2.
+
+The clear pattern is that the model pulls towards the average. It predicts too high when the real value is low and too low when it is high.
+
+| Real value | Mean error (predicted minus real) | MAE | MAPE |
+|---|---|---|---|
+| 3.6 to 10.7 | +0.97 | 1.57 | 21% |
+| 10.7 to 13.4 | +0.39 | 1.36 | 11% |
+| 13.4 to 16.2 | -0.39 | 1.38 | 9% |
+| 16.2 to 19.6 | -0.15 | 1.28 | 7% |
+| 19.6 to 26.2 | -0.84 | 1.38 | 6% |
+
+The absolute error is about the same everywhere, so in relative terms the low values are where it hurts: 21% against 6% at the top. If the business cares most about the low end, this model is weaker than its overall numbers suggest.
+
+I found no range of the five features where it fails more, and the error that is left is not explained by the fifteen features I dropped, so it looks like noise in the data. One more limit comes from the algorithm. Trees do not extrapolate, so an input outside the ranges seen in training gets a prediction that should not be trusted, and the API does not reject those inputs yet.
+
+### What happens when the data changes
+
+The model only knows the 800 rows it was trained on. If the inputs drift over time, the error grows and nothing warns you, because the real values arrive later or not at all.
+
+Each batch of predictions is already logged with its row count and the distribution of its predictions, which is the raw material to notice a change. The plan I would put in place is to compare every batch with the training data, alert when they move apart, and retrain on the newly labelled rows. If the new model fails the promotion check, the API keeps serving the previous one, and rolling back a bad promotion is moving the alias back to the old version. The details are in [Keeping performance up with new data](#keeping-performance-up-with-new-data).
+
+### What I would change in the setup
 
 - MLflow runs on SQLite with artifacts in a local Docker volume. For real use the backend store should be Postgres or a managed MLflow, with artifacts in object storage.
 - The API has no authentication or rate limiting. Here it is only reachable from localhost.
