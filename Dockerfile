@@ -21,7 +21,6 @@ RUN pip install --upgrade pip && \
 
 # Copy the rest of the application code
 COPY --chown=appuser:appuser src/ ./src
-COPY --chown=appuser:appuser app/ ./app
 
 # Create MLflow storage directory owned by appuser
 RUN mkdir -p /app/mlflow-store && chown -R appuser:appuser /app/mlflow-store
@@ -37,4 +36,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
