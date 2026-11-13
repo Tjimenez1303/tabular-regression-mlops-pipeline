@@ -1,0 +1,37 @@
+# Files and directories excluded from the Docker build context.
+# Reference: https://docs.docker.com/build/concepts/context/#dockerignore-files
+
+# Version control
+**/.git
+**/.gitignore
+
+# Docker and Compose files 
+**/.dockerignore
+**/Dockerfile*
+**/compose.y*ml
+**/docker-compose*
+
+# Editor and OS files
+**/.DS_Store
+**/.vscode
+**/.idea
+
+# Python caches and local environments
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.venv
+**/.env
+
+# Local MLflow state
+**/mlflow.db
+**/mlruns
+
+# Project folders not used by the image
+data
+notebooks
+tests
+
+# License file
+LICENSE

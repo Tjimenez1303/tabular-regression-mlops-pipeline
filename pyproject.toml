@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.27.0"] 
+build-backend = "hatchling.build" 
+
+[project]
+name = "tabular-regression-mlops-pipeline"
+version = "0.1.0"
+description = "End-to-end MLOps pipeline for multivariate regression with MLflow, FastAPI, and Docker"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE*"]
+
+dependencies = [
+    "numpy>=2.1.0", 
+    "pandas>=2.2.3",  
+    "scikit-learn>=1.6.1", 
+    "mlflow>=2.20.2", 
+    "fastapi>=0.115.8",
+    "uvicorn>=0.34.0",
+    "python-multipart>=0.0.20",
+    "pydantic>=2.10.6", 
+    "joblib>=1.4.2", 
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.4",
+    "httpx>=0.28.1",
+    "ruff>=0.9.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src", "app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
