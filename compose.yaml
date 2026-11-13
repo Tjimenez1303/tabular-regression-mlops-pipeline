@@ -1,0 +1,119 @@
+# Least-privilege security for all servies
+x-security-baseline: &security-baseline
+  security_opt:
+    - no-new-privileges:true # Disallow privilege escalation
+  cap_drop:
+    - ALL # Drop all capabilities
+  read_only: true
+  tmpfs:
+    - "/tmp:size=64m" # Mount /tmp as a tmpfs with a size limit of 64MB
+
+services:
+  # MLflow service for model tracking and MLflow UI
+  mlflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mlflow-tracking-ui
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:5001"
+    environment:
+      - HOME=/tmp
+      - MLFLOW_DISABLE_TELEMETRY=true
+    volumes:
+      - mlflow-data:/app/mlflow-store
+    <<: *security-baseline
+    command: ["mlflow", "server", "--backend-store-uri", "sqlite:////app/mlflow-store/mlflow.db", "--serve-artifacts", "--artifacts-destination", "/app/mlflow-store/artifacts", "--workers", "2", "--host", "0.0.0.0", "--port", "5001", "--allowed-hosts", "localhost,127.0.0.1,localhost:5001,127.0.0.1:5001,mlflow,mlflow:5001"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 3g # It needs more than 1GB of memory for the 2 workers
+  
+  # Boostrap service
+  model-initializer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: "no"
+    environment: &trainer-env
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - HOME=/tmp
+      - MLFLOW_DISABLE_TELEMETRY=true
+    volumes: &trainer-volumes
+      - ./data/raw:/app/data/raw:ro
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    <<: *security-baseline
+    tmpfs: &trainer-tmpfs
+      - "/tmp:size=256m"
+      - "/app/models:size=16m"
+    command: ["python", "-m", "src.train", "--if-missing"]
+    healthcheck:
+      disable: true
+  
+  # Retraining service
+  trainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    profiles:
+      - training
+    restart: "no"
+    environment: *trainer-env
+    volumes: *trainer-volumes
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    <<: *security-baseline
+    tmpfs: *trainer-tmpfs
+    command: ["python", "-m", "src.train"]
+    healthcheck:
+      disable: true
+  
+  # FastAPI service for regression inference
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: regression-inference-api
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5001
+      - HOME=/tmp
+      - MLFLOW_DISABLE_TELEMETRY=true
+    depends_on:
+      mlflow:
+        condition: service_healthy
+      model-initializer:
+        condition: service_completed_successfully
+    <<: *security-baseline
+    tmpfs:
+      - "/tmp:size=256m"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1g
+
+volumes:
+  mlflow-data:
