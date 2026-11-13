@@ -3,8 +3,8 @@ import pytest
 from fastapi.testclient import TestClient
 import pandas as pd
 
-from app.main import app
-from src.config import TOP_FEATURES
+from src.app.main import app
+from src.config import REGISTERED_MODEL_NAME, TOP_FEATURES
 
 @pytest.fixture(scope="module")
 def client():
@@ -19,6 +19,8 @@ def test_health_endpoint(client):
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "healthy"
+    assert body["model_name"] == REGISTERED_MODEL_NAME
+    assert body["model_version"].isdigit()
     assert body["required_features"] == TOP_FEATURES
 
 

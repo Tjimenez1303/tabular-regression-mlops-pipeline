@@ -20,5 +20,6 @@ class HealthResponse(BaseModel):
     """Service health and active model metadata."""
 
     status: str
-    model_source: str
+    model_name: str
+    model_version: str
     required_features: list[str]
