@@ -5,7 +5,6 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_RAW_DIR = ROOT_DIR / "data" / "raw"
 DATA_PRED_DIR = ROOT_DIR / "data" / "predictions"
-MODELS_DIR = ROOT_DIR / "models"
 
 # File paths
 TRAIN_DATA_PATH = DATA_RAW_DIR / "train.csv"
@@ -18,6 +17,7 @@ MLFLOW_TRACKING_URI = os.getenv(
 MLFLOW_EXPERIMENT_NAME = "tabular-regression-pipeline"
 REGISTERED_MODEL_NAME = "gradient-boosting-regressor"
 CHAMPION_ALIAS = "champion"
+CHALLENGER_ALIAS = "challenger"
 
 # Target variable
 TARGET_COLUMN = "target"
@@ -31,12 +31,12 @@ TOP_FEATURES = [
     "feature_18",
 ]
 
-# Optimal hyperparameters
-MODEL_PARAMS = {
-    "learning_rate": 0.1,
-    "max_depth": 2,
-    "min_samples_leaf": 10,
-    "n_estimators": 300,
-    "subsample": 0.8,
-    "random_state": 42,
-}
+# Training pipeline settings
+RANDOM_STATE = 42 
+TEST_SIZE = 0.2 
+CV_FOLDS = 5
+N_TRIALS = 30 
+
+# Promotion gate
+MAX_HOLDOUT_RMSE = 2.5
+MIN_RELATIVE_IMPROVEMENT = 0.01
